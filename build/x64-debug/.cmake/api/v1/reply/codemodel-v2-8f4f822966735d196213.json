@@ -1,0 +1,126 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"childIndexes" : 
+					[
+						1,
+						2
+					],
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-.-Debug-d0094a50bb2071803777.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.12"
+					},
+					"projectIndex" : 0,
+					"source" : "."
+				},
+				{
+					"build" : "lumios",
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-lumios-Debug-47d9394717249fd7a9d5.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.12"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 1,
+					"source" : "lumios",
+					"targetIndexes" : 
+					[
+						1
+					]
+				},
+				{
+					"build" : "application",
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-application-Debug-b5edde2705dd675d6051.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.12"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 2,
+					"source" : "application",
+					"targetIndexes" : 
+					[
+						0
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"childIndexes" : 
+					[
+						1,
+						2
+					],
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "lumios-engine"
+				},
+				{
+					"directoryIndexes" : 
+					[
+						1
+					],
+					"name" : "lumios",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						1
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						2
+					],
+					"name" : "application",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						0
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 2,
+					"id" : "application::@8badf0d542dc2e21c899",
+					"jsonFile" : "target-application-Debug-d5ccbac3b2d993903d2e.json",
+					"name" : "application",
+					"projectIndex" : 2
+				},
+				{
+					"directoryIndex" : 1,
+					"id" : "lumios::@213f2f476f057165bed0",
+					"jsonFile" : "target-lumios-Debug-9848f754c1b3f31e0a2e.json",
+					"name" : "lumios",
+					"projectIndex" : 1
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "C:/Users/cringevictim/Desktop/lumios/build/x64-debug",
+		"source" : "C:/Users/cringevictim/Desktop/lumios"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 8
+	}
+}

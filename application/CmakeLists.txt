@@ -1,0 +1,24 @@
+cmake_minimum_required (VERSION 3.12)
+project (application VERSION 1.0.0)
+
+add_executable (application)
+target_sources(application PRIVATE
+	src/main.cpp
+)
+
+target_link_libraries(application PRIVATE lumios)
+target_include_directories(application PRIVATE "${CMAKE_SOURCE_DIR}/lumios/src")
+
+# Set target properties for executable
+set_target_properties(application PROPERTIES
+    VERSION ${PROJECT_VERSION}
+    OUTPUT_NAME "application"
+)
+
+# Install rules for application
+install(TARGETS application
+    RUNTIME DESTINATION bin
+)
+
+
+

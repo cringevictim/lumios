@@ -1,6 +1,0 @@
-# ninja log v6
-20	49	7790592256231529	application/CMakeFiles/application.dir/src/main.cpp.obj	114d1cf483bbef1
-15	675	7790592256179913	lumios/CMakeFiles/lumios.dir/src/lumios.cpp.obj	abbb42d63d2d337f
-675	782	7790592262773008	bin/lumios.dll	16d8df954998617
-675	782	7790592262773008	lib/lumios.lib	16d8df954998617
-782	861	7790592263845295	bin/application.exe	8d27e327bffb0326

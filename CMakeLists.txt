@@ -6,6 +6,15 @@ if (POLICY CMP0141)
   set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<IF:$<AND:$<C_COMPILER_ID:MSVC>,$<CXX_COMPILER_ID:MSVC>>,$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>,$<$<CONFIG:Debug,RelWithDebInfo>:ProgramDatabase>>")
 endif()
 
+# CPM bootstrap
+if(NOT EXISTS "${CMAKE_BINARY_DIR}/cmake/CPM.cmake")
+  file(DOWNLOAD
+    https://github.com/cpm-cmake/CPM.cmake/releases/latest/download/CPM.cmake
+    "${CMAKE_BINARY_DIR}/cmake/CPM.cmake"
+  )
+endif()
+include("${CMAKE_BINARY_DIR}/cmake/CPM.cmake")
+
 project ("lumios-engine" VERSION 1.0.0 LANGUAGES CXX)
 
 # Set global C++ standard
@@ -31,6 +40,20 @@ foreach(OUTPUTCONFIG ${CMAKE_CONFIGURATION_TYPES})
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${CMAKE_BINARY_DIR}/lib)
     set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_${OUTPUTCONFIG} ${CMAKE_BINARY_DIR}/lib)
 endforeach()
+
+# Fetch Vulkan-Headers via CPM (header-only) without using git clone
+CPMAddPackage(
+  NAME VulkanHeaders
+  URL https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.3.290.tar.gz
+  DOWNLOAD_ONLY YES
+)
+
+# Create an interface target and alias Vulkan::Headers for use by subprojects
+if (VulkanHeaders_ADDED)
+  add_library(VulkanHeaders INTERFACE)
+  target_include_directories(VulkanHeaders INTERFACE ${VulkanHeaders_SOURCE_DIR}/include)
+  add_library(Vulkan::Headers ALIAS VulkanHeaders)
+endif()
 
 add_subdirectory ("lumios")
 add_subdirectory ("application")

@@ -34,3 +34,14 @@ install(TARGETS lumios
 install(FILES src/lumios.h
     DESTINATION include
 )
+
+# Link header-only Vulkan-Headers if available (from root CPM)
+if(TARGET Vulkan::Headers)
+  target_link_libraries(lumios PUBLIC Vulkan::Headers)
+endif()
+
+# Optional fallback to system Vulkan SDK for loader (no volk requested)
+find_package(Vulkan QUIET)
+if(Vulkan_FOUND)
+  target_link_libraries(lumios PUBLIC Vulkan::Vulkan)
+endif()

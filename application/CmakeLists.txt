@@ -9,13 +9,28 @@ target_sources(application PRIVATE
 target_link_libraries(application PRIVATE lumios)
 target_include_directories(application PRIVATE "${CMAKE_SOURCE_DIR}/lumios/src")
 
-# Set target properties for executable
+if(TARGET glfw)
+  target_link_libraries(application PRIVATE glfw)
+endif()
+
+if(TARGET Vulkan::Headers)
+  target_link_libraries(application PRIVATE Vulkan::Headers)
+endif()
+
+if(TARGET glm::glm)
+  target_link_libraries(application PRIVATE glm::glm)
+endif()
+
+find_package(Vulkan QUIET)
+if(Vulkan_FOUND)
+  target_link_libraries(application PRIVATE Vulkan::Vulkan)
+endif()
+
 set_target_properties(application PROPERTIES
     VERSION ${PROJECT_VERSION}
     OUTPUT_NAME "application"
 )
 
-# Install rules for application
 install(TARGETS application
     RUNTIME DESTINATION bin
 )

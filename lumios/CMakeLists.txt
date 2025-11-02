@@ -35,9 +35,31 @@ install(FILES src/lumios.h
     DESTINATION include
 )
 
+# Install tinygltf headers if available
+if(TARGET tinygltf::tinygltf AND tinygltf_ADDED)
+    install(FILES ${tinygltf_SOURCE_DIR}/tiny_gltf.h
+        DESTINATION include
+    )
+endif()
+
 # Link header-only Vulkan-Headers if available (from root CPM)
 if(TARGET Vulkan::Headers)
   target_link_libraries(lumios PUBLIC Vulkan::Headers)
+endif()
+
+# Link tinygltf if available (from root CPM)
+if(TARGET tinygltf::tinygltf)
+  target_link_libraries(lumios PUBLIC tinygltf::tinygltf)
+endif()
+
+# Link GLFW if available (from root CPM)
+if(TARGET glfw)
+  target_link_libraries(lumios PUBLIC glfw)
+endif()
+
+# Link GLM if available (from root CPM)
+if(TARGET glm::glm)
+  target_link_libraries(lumios PUBLIC glm::glm)
 endif()
 
 # Optional fallback to system Vulkan SDK for loader (no volk requested)

@@ -55,5 +55,54 @@ if (VulkanHeaders_ADDED)
   add_library(Vulkan::Headers ALIAS VulkanHeaders)
 endif()
 
+# Fetch tinygltf via CPM (header-only GLTF 2.0 library)
+CPMAddPackage(
+  NAME tinygltf
+  GITHUB_REPOSITORY syoyo/tinygltf
+  VERSION 2.9.3
+  OPTIONS
+    "TINYGLTF_HEADER_ONLY ON"
+    "TINYGLTF_INSTALL ON"
+    "TINYGLTF_BUILD_LOADER_EXAMPLE OFF"
+    "TINYGLTF_BUILD_GL_EXAMPLES OFF"
+    "TINYGLTF_BUILD_VALIDATOR_EXAMPLE OFF"
+    "TINYGLTF_BUILD_BUILDER_EXAMPLE OFF"
+)
+
+# Create an interface target for tinygltf if added
+if (tinygltf_ADDED)
+  add_library(tinygltf_interface INTERFACE)
+  target_include_directories(tinygltf_interface INTERFACE ${tinygltf_SOURCE_DIR})
+  # tinygltf requires stb_image and nlohmann/json, which are bundled
+  target_compile_definitions(tinygltf_interface INTERFACE 
+    TINYGLTF_IMPLEMENTATION
+    STB_IMAGE_IMPLEMENTATION
+    STB_IMAGE_WRITE_IMPLEMENTATION
+  )
+  add_library(tinygltf::tinygltf ALIAS tinygltf_interface)
+endif()
+
+# Fetch GLFW via CPM (window management and input handling)
+# Using commit hash for reliability since version tags seem to have issues
+CPMAddPackage(
+  NAME glfw
+  GITHUB_REPOSITORY glfw/glfw
+  GIT_TAG 45ce5ddd197d5c58f50fdd3296a5131c894e5527  # GLFW 3.3.8 stable
+  OPTIONS
+    "GLFW_BUILD_EXAMPLES OFF"
+    "GLFW_BUILD_TESTS OFF"
+    "GLFW_BUILD_DOCS OFF"
+    "GLFW_INSTALL ON"
+)
+
+# Fetch GLM via CPM (OpenGL Mathematics library)
+CPMAddPackage(
+  NAME glm
+  GITHUB_REPOSITORY g-truc/glm
+  GIT_TAG 0.9.9.8
+  OPTIONS
+    "GLM_BUILD_TESTS OFF"
+)
+
 add_subdirectory ("lumios")
 add_subdirectory ("application")

@@ -3,10 +3,23 @@ project (lumios VERSION 1.0.0)
 
 add_library(lumios SHARED
  "src/lumios.cpp"
+ "src/lumios.h"
  "src/defines.h" 
  "src/core/utils/logger.h"
  "src/core/utils/logger.cpp" 
- "src/core/memory/smart_resource.h")
+ "src/core/memory/smart_resource.h"
+ 
+ # Graphics system
+ "src/graphics/config/graphics_config.h"
+ "src/graphics/config/graphics_config.cpp"
+ "src/graphics/backend/graphics_backend.h"
+ "src/graphics/backend/graphics_backend.cpp"
+ "src/graphics/backend/vulkan/vulkan_backend.h"
+ "src/graphics/backend/vulkan/vulkan_backend.cpp"
+ "src/graphics/backend/directx12/dx12_backend.h"
+ "src/graphics/backend/directx12/dx12_backend.cpp"
+ "src/graphics/frontend/graphics_frontend.h"
+ "src/graphics/frontend/graphics_frontend.cpp" "src/graphics/backend/vulkan/vulkan_utils/vulkan_instance.cpp" "src/graphics/backend/vulkan/vulkan_utils/vulkan_instance.h")
 
 target_include_directories(lumios PUBLIC 
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>

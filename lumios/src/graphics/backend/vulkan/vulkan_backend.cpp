@@ -484,8 +484,8 @@ namespace lumios::graphics::vulkan {
 
             score += deviceProperties.limits.maxImageDimension2D;
 
-            QueueFamilyIndices indices = FindQueueFamilies(device);
-            if (!indices.IsComplete()) {
+            m_QueueFamilyIndices = FindQueueFamilies(device);
+            if (!m_QueueFamilyIndices.IsComplete()) {
                 score = 0;
             }
 
@@ -558,31 +558,51 @@ namespace lumios::graphics::vulkan {
         std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
         vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
 
-        int i = 0;
-        for (const auto& queueFamily : queueFamilies) {
+        LOG_INFO_F("Found {} queue families", queueFamilyCount);
+
+        for (uint32_t i = 0; i < queueFamilyCount; i++) {
+            const auto& queueFamily = queueFamilies[i];
+
+            LOG_INFO_F("Queue Family {}: queueCount={}, flags={}",
+                i, queueFamily.queueCount, queueFamily.queueFlags);
+
             if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
                 indices.graphics_family = i;
+                LOG_INFO_F("  -> Graphics queue found at index {}", i);
             }
 
             if (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT) {
                 indices.compute_family = i;
+                LOG_INFO_F("  -> Compute queue found at index {}", i);
             }
 
             if (queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT) {
                 indices.transfer_family = i;
+                LOG_INFO_F("  -> Transfer queue found at index {}", i);
             }
 
             VkBool32 presentSupport = false;
             vkGetPhysicalDeviceSurfaceSupportKHR(device, i, m_Surface, &presentSupport);
             if (presentSupport) {
                 indices.present_family = i;
+                LOG_INFO_F("  -> Present queue found at index {}", i);
             }
 
             if (indices.IsComplete()) {
+                LOG_INFO("All required queue families found!");
                 break;
             }
+        }
 
-            i++;
+        // Final status
+        if (!indices.IsComplete()) {
+            LOG_WARN("Not all required queue families were found!");
+            if (!indices.graphics_family.has_value()) {
+                LOG_ERROR("Missing graphics queue family");
+            }
+            if (!indices.present_family.has_value()) {
+                LOG_ERROR("Missing present queue family");
+            }
         }
 
         return indices;
@@ -615,6 +635,77 @@ namespace lumios::graphics::vulkan {
     BackendResult VulkanBackend::CreateLogicalDevice() {
         LOG_INFO("Creating Logical Device...");
 
+        if (!m_QueueFamilyIndices.IsComplete()) {
+            LOG_ERROR("Selected device doesn't have required queue families");
+            return BackendResult::FAILED_INITIALIZATION;
+        }
+
+        std::set<uint32_t> uniqueQueueFamilies = {
+            m_QueueFamilyIndices.graphics_family.value(),
+            m_QueueFamilyIndices.present_family.value()
+        };
+
+        // Optional
+        if (m_QueueFamilyIndices.compute_family.has_value()) {
+            uniqueQueueFamilies.insert(m_QueueFamilyIndices.compute_family.value());
+        }
+        if (m_QueueFamilyIndices.transfer_family.has_value()) {
+            uniqueQueueFamilies.insert(m_QueueFamilyIndices.transfer_family.value());
+        }
+
+        std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+        float queuePriority = 1.0f;
+
+        for (uint32_t queueFamily : uniqueQueueFamilies) {
+            VkDeviceQueueCreateInfo queueCreateInfo{};
+            queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+            queueCreateInfo.queueFamilyIndex = queueFamily;
+            queueCreateInfo.queueCount = 1;
+            queueCreateInfo.pQueuePriorities = &queuePriority;
+            queueCreateInfos.push_back(queueCreateInfo);
+        }
+
+        VkPhysicalDeviceFeatures deviceFeatures{};
+        deviceFeatures.samplerAnisotropy = VK_TRUE;
+        // Add more features as needed
+
+        VkDeviceCreateInfo createInfo{};
+        createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+        createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
+        createInfo.pQueueCreateInfos = queueCreateInfos.data();
+        createInfo.pEnabledFeatures = &deviceFeatures;
+
+        // Enable device extensions (swapchain)
+        createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
+        createInfo.ppEnabledExtensionNames = deviceExtensions.data();
+
+        // deprecated but for compatibility
+        if (m_Config.GetRenderConfig().enable_validation) {
+            createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+            createInfo.ppEnabledLayerNames = validationLayers.data();
+        }
+        else {
+            createInfo.enabledLayerCount = 0;
+        }
+
+        if (vkCreateDevice(m_PhysicalDevice, &createInfo, nullptr, &m_Device) != VK_SUCCESS) {
+            LOG_ERROR("Failed to create logical device");
+            return BackendResult::FAILED_INITIALIZATION;
+        }
+
+        vkGetDeviceQueue(m_Device, m_QueueFamilyIndices.graphics_family.value(), 0, &m_GraphicsQueue);
+        vkGetDeviceQueue(m_Device, m_QueueFamilyIndices.present_family.value(), 0, &m_PresentQueue);
+
+        LOG_INFO("Logical device created successfully");
+        LOG_INFO_F("Graphics queue family: {}", m_QueueFamilyIndices.graphics_family.value());
+        LOG_INFO_F("Present queue family: {}", m_QueueFamilyIndices.present_family.value());
+
+        if (m_QueueFamilyIndices.graphics_family.value() == m_QueueFamilyIndices.present_family.value()) {
+            LOG_INFO("Graphics and present queues are the same");
+        }
+        else {
+            LOG_INFO("Graphics and present queues are separate");
+        }
 
         return BackendResult::SUCCESS;
     }

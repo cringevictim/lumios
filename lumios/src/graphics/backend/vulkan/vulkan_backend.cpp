@@ -422,6 +422,7 @@ namespace lumios::graphics::vulkan {
     }
 
     BackendResult VulkanBackend::CreateSurface() {
+        LOG_INFO("Creating Surface...");
         VkWin32SurfaceCreateInfoKHR createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
         createInfo.pNext = nullptr;
@@ -434,6 +435,11 @@ namespace lumios::graphics::vulkan {
             LOG_ERROR("Failed to create window surface");
             return BackendResult::FAILED_INITIALIZATION;
         }
+
+		/*VkSurfaceCapabilitiesKHR capabilities;
+        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_PhysicalDevice, m_Surface, &capabilities);*/
+        /*LOG_INFO(capabilities.currentExtent.height);*/
+
         return BackendResult::SUCCESS;
     }
 
@@ -607,8 +613,9 @@ namespace lumios::graphics::vulkan {
     }
 
     BackendResult VulkanBackend::CreateLogicalDevice() {
-        // Implementation would create logical device and queues
-        LOG_INFO("Logical device creation - placeholder implementation");
+        LOG_INFO("Creating Logical Device...");
+
+
         return BackendResult::SUCCESS;
     }
 

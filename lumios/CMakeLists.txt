@@ -19,7 +19,7 @@ add_library(lumios SHARED
  "src/graphics/backend/directx12/dx12_backend.h"
  "src/graphics/backend/directx12/dx12_backend.cpp"
  "src/graphics/frontend/graphics_frontend.h"
- "src/graphics/frontend/graphics_frontend.cpp" "src/graphics/backend/vulkan/vulkan_utils/vulkan_instance.cpp" "src/graphics/backend/vulkan/vulkan_utils/vulkan_instance.h")
+ "src/graphics/frontend/graphics_frontend.cpp")
 
 target_include_directories(lumios PUBLIC 
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>

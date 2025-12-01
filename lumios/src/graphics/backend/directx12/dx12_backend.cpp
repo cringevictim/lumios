@@ -138,16 +138,6 @@ namespace lumios::graphics {
         return m_Stats;
     }
 
-    bool DirectX12Backend::SupportsFeature(const std::string& feature) const {
-        LogNotImplemented("SupportsFeature");
-        
-        // Basic stub feature support
-        if (feature == "directx12") return true;
-        if (feature == "stub_implementation") return true;
-        
-        return false;
-    }
-
     // Private implementation methods (all stubs)
 
     BackendResult DirectX12Backend::CreateDevice() {
@@ -223,8 +213,8 @@ namespace lumios::graphics {
     void DirectX12Backend::LogNotImplemented(const std::string& function_name) const {
         static bool first_warning = true;
         if (first_warning) {
-            LOG_WARN("DirectX 12 backend is a stub implementation. Function '{}' is not implemented.", function_name);
-            LOG_WARN("To enable DirectX 12 support, implement the actual DirectX 12 functionality.");
+            LOG_WARN_F("DirectX 12 backend is a stub implementation. Function '{}' is not implemented.", function_name);
+            LOG_WARN_F("To enable DirectX 12 support, implement the actual DirectX 12 functionality.");
             first_warning = false;
         }
     }

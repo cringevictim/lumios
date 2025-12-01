@@ -192,22 +192,28 @@ namespace lumios::utils {
         if (level < get_log_level()) {
             return;
         }
-        
-        // Convert all arguments to strings
-        std::string arg_strings[] = { to_string_helper(std::forward<Args>(args))... };
-        
-        // Replace {} placeholders with arguments
-        std::string result = format;
-        size_t arg_index = 0;
-        size_t pos = 0;
-        
-        while ((pos = result.find("{}", pos)) != std::string::npos && arg_index < sizeof...(Args)) {
-            result.replace(pos, 2, arg_strings[arg_index]);
-            pos += arg_strings[arg_index].length();
-            arg_index++;
+
+        // Handle the case when no arguments are provided
+        if constexpr (sizeof...(Args) == 0) {
+            log_message(level, format);
         }
-        
-        log_message(level, result);
+        else {
+            // Convert all arguments to strings (only when we have arguments)
+            std::string arg_strings[] = { to_string_helper(std::forward<Args>(args))... };
+
+            // Replace {} placeholders with arguments
+            std::string result = format;
+            size_t arg_index = 0;
+            size_t pos = 0;
+
+            while ((pos = result.find("{}", pos)) != std::string::npos && arg_index < sizeof...(Args)) {
+                result.replace(pos, 2, arg_strings[arg_index]);
+                pos += arg_strings[arg_index].length();
+                arg_index++;
+            }
+
+            log_message(level, result);
+        }
     }
 
     // Internal formatting functions are implemented in the .cpp file

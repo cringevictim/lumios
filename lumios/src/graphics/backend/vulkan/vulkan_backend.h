@@ -5,16 +5,44 @@
 #include <vulkan/vulkan.h>
 #include <vector>
 #include <optional>
+#include <array>
+#include <map>
 
 struct GLFWwindow;
 
 namespace lumios::graphics::vulkan {
+
+    // Queue type enumeration for easy access
+    enum class QueueType : uint8_t {
+        GRAPHICS_MAIN = 0,      // Primary graphics queue
+        GRAPHICS_SECONDARY,     // Secondary graphics queue (for parallel submission)
+        PRESENT,                // Presentation queue (often same as graphics)
+        COMPUTE_ASYNC,          // Async compute queue
+        TRANSFER_ASYNC,         // Async transfer/DMA queue
+        COUNT                   // Total number of queue types
+    };
+
+    // Queue family information with available queue counts
+    struct QueueFamilyInfo {
+        uint32_t family_index = UINT32_MAX;
+        uint32_t available_queues = 0;
+        VkQueueFlags flags = 0;
+        bool supports_present = false;
+
+        bool IsValid() const { return family_index != UINT32_MAX; }
+    };
 
     struct QueueFamilyIndices {
         std::optional<uint32_t> graphics_family;
         std::optional<uint32_t> present_family;
         std::optional<uint32_t> compute_family;
         std::optional<uint32_t> transfer_family;
+
+        // Store available queue counts for each family
+        uint32_t graphics_queue_count = 0;
+        uint32_t present_queue_count = 0;
+        uint32_t compute_queue_count = 0;
+        uint32_t transfer_queue_count = 0;
 
         bool IsComplete() const {
             return graphics_family.has_value() && present_family.has_value();
@@ -25,6 +53,14 @@ namespace lumios::graphics::vulkan {
         VkSurfaceCapabilitiesKHR capabilities;
         std::vector<VkSurfaceFormatKHR> formats;
         std::vector<VkPresentModeKHR> present_modes;
+    };
+
+    const std::vector<const char*> validationLayers = {
+        "VK_LAYER_KHRONOS_validation"
+    };
+
+    const std::vector<const char*> deviceExtensions = {
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME
     };
 
     class LUMIOS_API VulkanBackend : public GraphicsBackend {
@@ -53,7 +89,6 @@ namespace lumios::graphics::vulkan {
         RenderStats GetRenderStats() const override;
 
         const GraphicsConfig& GetConfig() const override { return m_Config; }
-        bool SupportsFeature(const std::string& feature) const override;
 
     private:
         VkInstance m_Instance = VK_NULL_HANDLE;
@@ -62,8 +97,9 @@ namespace lumios::graphics::vulkan {
         VkPhysicalDevice m_PhysicalDevice = VK_NULL_HANDLE;
         VkDevice m_Device = VK_NULL_HANDLE;
 
-        VkQueue m_GraphicsQueue = VK_NULL_HANDLE;
-        VkQueue m_PresentQueue = VK_NULL_HANDLE;
+        // Queue management
+        std::map<QueueType, VkQueue> m_Queues;  // Map of queue types to queue handles
+        std::map<uint32_t, std::vector<VkQueue>> m_QueuesByFamily;  // All queues organized by family
         QueueFamilyIndices m_QueueFamilyIndices;
 
         VkSwapchainKHR m_Swapchain = VK_NULL_HANDLE;
@@ -107,9 +143,13 @@ namespace lumios::graphics::vulkan {
         QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
         bool CheckDeviceExtensionSupport(VkPhysicalDevice device);
         SwapchainSupportDetails QuerySwapchainSupport(VkPhysicalDevice device);
-        VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& available_formats);
-        VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& available_present_modes);
-        VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+        //VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& available_formats);
+        //VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& available_present_modes);
+        //VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+
+        // Queue access helpers
+        VkQueue GetQueue(QueueType type) const;
+        bool HasQueue(QueueType type) const;
 
         // Cleanup helpers
         void CleanupSwapchain();

@@ -4,28 +4,10 @@
 #define VK_USE_PLATFORM_WIN32_KHR
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
-#define GLFW_EXPOSE_NATIVE_WIN32
-#include <GLFW/glfw3native.h>
 
 #include <vulkan/vulkan.h>
-#include <vulkan/vulkan_win32.h>
-
-#include <set>
-#include <algorithm>
-#include <cstring>
-
 
 namespace lumios::graphics::vulkan {
-
-    // Validation layers
-    const std::vector<const char*> validationLayers = {
-        "VK_LAYER_KHRONOS_validation"
-    };
-
-    // Device extensions
-    const std::vector<const char*> deviceExtensions = {
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME
-    };
 
     VulkanBackend::VulkanBackend() = default;
 
@@ -178,7 +160,8 @@ namespace lumios::graphics::vulkan {
         submitInfo.signalSemaphoreCount = 1;
         submitInfo.pSignalSemaphores = signalSemaphores;
 
-        if (vkQueueSubmit(m_GraphicsQueue, 1, &submitInfo, m_InFlightFences[m_CurrentFrame]) != VK_SUCCESS) {
+        VkQueue graphicsQueue = GetQueue(QueueType::GRAPHICS_MAIN);
+        if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, m_InFlightFences[m_CurrentFrame]) != VK_SUCCESS) {
             LOG_ERROR("Failed to submit draw command buffer");
             return BackendResult::UNKNOWN_ERROR;
         }
@@ -194,7 +177,8 @@ namespace lumios::graphics::vulkan {
         presentInfo.pSwapchains = swapchains;
         presentInfo.pImageIndices = &m_ImageIndex;
 
-        VkResult result = vkQueuePresentKHR(m_PresentQueue, &presentInfo);
+        VkQueue presentQueue = GetQueue(QueueType::PRESENT);
+        VkResult result = vkQueuePresentKHR(presentQueue, &presentInfo);
 
         if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_FramebufferResized) {
             m_FramebufferResized = false;
@@ -212,25 +196,6 @@ namespace lumios::graphics::vulkan {
 
     BackendResult VulkanBackend::HandleResize(uint32_t width, uint32_t height) {
         m_FramebufferResized = true;
-        return BackendResult::SUCCESS;
-    }
-
-    BackendResult VulkanBackend::RecreateSwapchain() {
-        int width = 0, height = 0;
-        glfwGetFramebufferSize(m_Window, &width, &height);
-        while (width == 0 || height == 0) {
-            glfwGetFramebufferSize(m_Window, &width, &height);
-            glfwWaitEvents();
-        }
-
-        WaitIdle();
-
-        CleanupSwapchain();
-
-        BackendResult result;
-        if ((result = CreateSwapchain()) != BackendResult::SUCCESS) return result;
-        if ((result = CreateImageViews()) != BackendResult::SUCCESS) return result;
-
         return BackendResult::SUCCESS;
     }
 
@@ -264,456 +229,17 @@ namespace lumios::graphics::vulkan {
     RenderStats VulkanBackend::GetRenderStats() const {
         return m_Stats;
     }
-
-    bool VulkanBackend::SupportsFeature(const std::string& feature) const {
-        // Basic feature support checking - can be expanded
-        if (feature == "validation_layers") {
-            return m_Config.GetRenderConfig().enable_validation;
+    
+    VkQueue VulkanBackend::GetQueue(QueueType type) const {
+        auto it = m_Queues.find(type);
+        if (it != m_Queues.end()) {
+            return it->second;
         }
-        if (feature == "debug_markers") {
-            return m_Config.GetRenderConfig().enable_debug_markers;
-        }
-        return false;
+        return VK_NULL_HANDLE;
     }
 
-    BackendResult VulkanBackend::CreateInstance() {
-        LOG_INFO("Requesting validation layers...");
-        if (m_Config.GetRenderConfig().enable_validation && !CheckValidationLayerSupport()) {
-            LOG_ERROR("Validation layers requested, but not available");
-            return BackendResult::FAILED_INITIALIZATION;
-        }
-
-        VkApplicationInfo appInfo{};
-        appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-        appInfo.pApplicationName = m_Config.GetWindowConfig().title.c_str();
-        appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-        appInfo.pEngineName = "Lumios Engine";
-        appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-        appInfo.apiVersion = VK_API_VERSION_1_3;
-
-        VkInstanceCreateInfo createInfo{};
-        createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-        createInfo.pApplicationInfo = &appInfo;
-
-        auto extensions = GetRequiredExtensions();
-        createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
-        createInfo.ppEnabledExtensionNames = extensions.data();
-
-        VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
-        if (m_Config.GetRenderConfig().enable_validation) {
-            createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
-            createInfo.ppEnabledLayerNames = validationLayers.data();
-
-            debugCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-            debugCreateInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | 
-                                            VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | 
-                                            VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-            debugCreateInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | 
-                                        VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | 
-                                        VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-            debugCreateInfo.pfnUserCallback = DebugCallback;
-
-            createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
-        } else {
-            createInfo.enabledLayerCount = 0;
-            createInfo.pNext = nullptr;
-        }
-
-        if (vkCreateInstance(&createInfo, nullptr, &m_Instance) != VK_SUCCESS) {
-            LOG_ERROR("Failed to create Vulkan instance");
-            return BackendResult::FAILED_INITIALIZATION;
-        }
-
-
-        return BackendResult::SUCCESS;
-    }
-
-    bool VulkanBackend::CheckValidationLayerSupport() {
-        uint32_t layerCount;
-        vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-
-        std::vector<VkLayerProperties> availableLayers(layerCount);
-        vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
-
-        for (const char* layerName : validationLayers) {
-            bool layerFound = false;
-
-            for (const auto& layerProperties : availableLayers) {
-                if (strcmp(layerName, layerProperties.layerName) == 0) {
-                    layerFound = true;
-                    break;
-                }
-            }
-
-            if (!layerFound) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    std::vector<const char*> VulkanBackend::GetRequiredExtensions() {
-        uint32_t glfwExtensionCount = 0;
-        const char** glfwExtensions;
-        glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-
-        std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
-
-        if (m_Config.GetRenderConfig().enable_validation) {
-            extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-        }
-
-        return extensions;
-    }
-
-    void VulkanBackend::CleanupSwapchain() {
-        for (auto imageView : m_SwapchainImageViews) {
-            vkDestroyImageView(m_Device, imageView, nullptr);
-        }
-
-        if (m_Swapchain != VK_NULL_HANDLE) {
-            vkDestroySwapchainKHR(m_Device, m_Swapchain, nullptr);
-        }
-    }
-
-    VKAPI_ATTR VkBool32 VKAPI_CALL VulkanBackend::DebugCallback(
-        VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-        VkDebugUtilsMessageTypeFlagsEXT messageType,
-        const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-        void* pUserData) {
-
-        if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
-            LOG_ERROR_F("[VALIDATION] {}", pCallbackData->pMessage);
-        } else if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
-            LOG_WARN_F("[VALIDATION] {}", pCallbackData->pMessage);
-        } else {
-            LOG_INFO_F("[VALIDATION] {}", pCallbackData->pMessage);
-		}
-
-        return VK_FALSE;
-    }
-
-    BackendResult VulkanBackend::SetupDebugMessenger() {
-        if (!m_Config.GetRenderConfig().enable_validation) return BackendResult::SUCCESS;
-
-        VkDebugUtilsMessengerCreateInfoEXT createInfo{};
-        createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-        createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | 
-                                   VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | 
-                                   VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-        createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | 
-                               VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | 
-                               VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-        createInfo.pfnUserCallback = DebugCallback;
-
-        auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(m_Instance, "vkCreateDebugUtilsMessengerEXT");
-        if (func != nullptr) {
-            if (func(m_Instance, &createInfo, nullptr, &m_DebugMessenger) != VK_SUCCESS) {
-                LOG_ERROR("Failed to set up debug messenger");
-                return BackendResult::FAILED_INITIALIZATION;
-            }
-        } else {
-            LOG_ERROR("Debug messenger extension not available");
-            return BackendResult::FAILED_INITIALIZATION;
-        }
-
-        return BackendResult::SUCCESS;
-    }
-
-    BackendResult VulkanBackend::CreateSurface() {
-        LOG_INFO("Creating Surface...");
-        VkWin32SurfaceCreateInfoKHR createInfo{};
-        createInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-        createInfo.pNext = nullptr;
-        createInfo.flags = 0;
-        createInfo.hinstance = GetModuleHandle(nullptr);
-        createInfo.hwnd = glfwGetWin32Window(m_Window);
-
-
-        if (vkCreateWin32SurfaceKHR(m_Instance, &createInfo, nullptr, &m_Surface) != VK_SUCCESS) {
-            LOG_ERROR("Failed to create window surface");
-            return BackendResult::FAILED_INITIALIZATION;
-        }
-
-		/*VkSurfaceCapabilitiesKHR capabilities;
-        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_PhysicalDevice, m_Surface, &capabilities);*/
-        /*LOG_INFO(capabilities.currentExtent.height);*/
-
-        return BackendResult::SUCCESS;
-    }
-
-    BackendResult VulkanBackend::PickPhysicalDevice() {
-        LOG_INFO("Selecting physical device...");
-
-        uint32_t deviceCount = 0;
-        vkEnumeratePhysicalDevices(m_Instance, &deviceCount, nullptr);
-
-        if (deviceCount == 0) {
-            LOG_ERROR("Failed to find GPUs with Vulkan support, shutting down...");
-            return BackendResult::FAILED_INITIALIZATION;
-        }
-
-        std::vector<VkPhysicalDevice> devices(deviceCount);
-        vkEnumeratePhysicalDevices(m_Instance, &deviceCount, devices.data());
-
-        LOG_INFO_F("Found {} GPU(s) with Vulkan support", deviceCount);
-
-        uint32_t bestScore = 0;
-        VkPhysicalDevice bestDevice = VK_NULL_HANDLE;
-
-        for (uint32_t i = 0; i < deviceCount; i++) {
-            VkPhysicalDevice device = devices[i];
-
-            VkPhysicalDeviceProperties deviceProperties;
-            VkPhysicalDeviceFeatures deviceFeatures;
-            vkGetPhysicalDeviceProperties(device, &deviceProperties);
-            vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
-
-            uint32_t score = 0;
-
-            if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
-                score += 10000;
-            }
-            else if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU) {
-                score += 1000;
-            }
-            else {
-                score += 100;
-            }
-
-            score += deviceProperties.limits.maxImageDimension2D;
-
-            m_QueueFamilyIndices = FindQueueFamilies(device);
-            if (!m_QueueFamilyIndices.IsComplete()) {
-                score = 0;
-            }
-
-            if (score > 0 && !CheckDeviceExtensionSupport(device)) {
-                score = 0;
-            }
-
-            if (score > 0) {
-                SwapchainSupportDetails swapchainSupport = QuerySwapchainSupport(device);
-                if (swapchainSupport.formats.empty() || swapchainSupport.present_modes.empty()) {
-                    score = 0;
-                }
-            }
-
-            if (deviceFeatures.geometryShader) score += 100;
-            if (deviceFeatures.samplerAnisotropy) score += 50;
-
-            const char* deviceType = "Unknown";
-            switch (deviceProperties.deviceType) {
-            case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:   deviceType = "Discrete"; break;
-            case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU: deviceType = "Integrated"; break;
-            case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:    deviceType = "Virtual"; break;
-            case VK_PHYSICAL_DEVICE_TYPE_CPU:            deviceType = "CPU"; break;
-            }
-
-            LOG_INFO_F("GPU [{}]: {} ({}) - Score: {}", i, deviceProperties.deviceName, deviceType, score);
-
-            if (score > bestScore) {
-                bestScore = score;
-                bestDevice = device;
-            }
-        }
-
-        if (bestDevice == VK_NULL_HANDLE || bestScore == 0) {
-            LOG_ERROR("Failed to find a suitable GPU");
-            return BackendResult::FAILED_INITIALIZATION;
-        }
-
-        m_PhysicalDevice = bestDevice;
-
-        VkPhysicalDeviceProperties selectedProps;
-        vkGetPhysicalDeviceProperties(m_PhysicalDevice, &selectedProps);
-        LOG_INFO_F("Selected GPU: {} (Score: {})", selectedProps.deviceName, bestScore);
-
-        return BackendResult::SUCCESS;
-    }
-
-    bool VulkanBackend::CheckDeviceExtensionSupport(VkPhysicalDevice device) {
-        uint32_t extensionCount;
-        vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
-
-        std::vector<VkExtensionProperties> availableExtensions(extensionCount);
-        vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
-
-        std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
-
-        for (const auto& extension : availableExtensions) {
-            requiredExtensions.erase(extension.extensionName);
-        }
-
-        return requiredExtensions.empty();
-    }
-
-    QueueFamilyIndices VulkanBackend::FindQueueFamilies(VkPhysicalDevice device) {
-        QueueFamilyIndices indices;
-
-        uint32_t queueFamilyCount = 0;
-        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
-
-        std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
-
-        LOG_INFO_F("Found {} queue families", queueFamilyCount);
-
-        for (uint32_t i = 0; i < queueFamilyCount; i++) {
-            const auto& queueFamily = queueFamilies[i];
-
-            LOG_INFO_F("Queue Family {}: queueCount={}, flags={}",
-                i, queueFamily.queueCount, queueFamily.queueFlags);
-
-            if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-                indices.graphics_family = i;
-                LOG_INFO_F("  -> Graphics queue found at index {}", i);
-            }
-
-            if (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT) {
-                indices.compute_family = i;
-                LOG_INFO_F("  -> Compute queue found at index {}", i);
-            }
-
-            if (queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT) {
-                indices.transfer_family = i;
-                LOG_INFO_F("  -> Transfer queue found at index {}", i);
-            }
-
-            VkBool32 presentSupport = false;
-            vkGetPhysicalDeviceSurfaceSupportKHR(device, i, m_Surface, &presentSupport);
-            if (presentSupport) {
-                indices.present_family = i;
-                LOG_INFO_F("  -> Present queue found at index {}", i);
-            }
-
-            if (indices.IsComplete()) {
-                LOG_INFO("All required queue families found!");
-                break;
-            }
-        }
-
-        // Final status
-        if (!indices.IsComplete()) {
-            LOG_WARN("Not all required queue families were found!");
-            if (!indices.graphics_family.has_value()) {
-                LOG_ERROR("Missing graphics queue family");
-            }
-            if (!indices.present_family.has_value()) {
-                LOG_ERROR("Missing present queue family");
-            }
-        }
-
-        return indices;
-    }
-
-    SwapchainSupportDetails VulkanBackend::QuerySwapchainSupport(VkPhysicalDevice device) {
-        SwapchainSupportDetails details;
-
-        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, m_Surface, &details.capabilities);
-
-        uint32_t formatCount;
-        vkGetPhysicalDeviceSurfaceFormatsKHR(device, m_Surface, &formatCount, nullptr);
-
-        if (formatCount != 0) {
-            details.formats.resize(formatCount);
-            vkGetPhysicalDeviceSurfaceFormatsKHR(device, m_Surface, &formatCount, details.formats.data());
-        }
-
-        uint32_t presentModeCount;
-        vkGetPhysicalDeviceSurfacePresentModesKHR(device, m_Surface, &presentModeCount, nullptr);
-
-        if (presentModeCount != 0) {
-            details.present_modes.resize(presentModeCount);
-            vkGetPhysicalDeviceSurfacePresentModesKHR(device, m_Surface, &presentModeCount, details.present_modes.data());
-        }
-
-        return details;
-    }
-
-    BackendResult VulkanBackend::CreateLogicalDevice() {
-        LOG_INFO("Creating Logical Device...");
-
-        if (!m_QueueFamilyIndices.IsComplete()) {
-            LOG_ERROR("Selected device doesn't have required queue families");
-            return BackendResult::FAILED_INITIALIZATION;
-        }
-
-        std::set<uint32_t> uniqueQueueFamilies = {
-            m_QueueFamilyIndices.graphics_family.value(),
-            m_QueueFamilyIndices.present_family.value()
-        };
-
-        // Optional
-        if (m_QueueFamilyIndices.compute_family.has_value()) {
-            uniqueQueueFamilies.insert(m_QueueFamilyIndices.compute_family.value());
-        }
-        if (m_QueueFamilyIndices.transfer_family.has_value()) {
-            uniqueQueueFamilies.insert(m_QueueFamilyIndices.transfer_family.value());
-        }
-
-        std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-        float queuePriority = 1.0f;
-
-        for (uint32_t queueFamily : uniqueQueueFamilies) {
-            VkDeviceQueueCreateInfo queueCreateInfo{};
-            queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-            queueCreateInfo.queueFamilyIndex = queueFamily;
-            queueCreateInfo.queueCount = 1;
-            queueCreateInfo.pQueuePriorities = &queuePriority;
-            queueCreateInfos.push_back(queueCreateInfo);
-        }
-
-        VkPhysicalDeviceFeatures deviceFeatures{};
-        deviceFeatures.samplerAnisotropy = VK_TRUE;
-        // Add more features as needed
-
-        VkDeviceCreateInfo createInfo{};
-        createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-        createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
-        createInfo.pQueueCreateInfos = queueCreateInfos.data();
-        createInfo.pEnabledFeatures = &deviceFeatures;
-
-        // Enable device extensions (swapchain)
-        createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
-        createInfo.ppEnabledExtensionNames = deviceExtensions.data();
-
-        // deprecated but for compatibility
-        if (m_Config.GetRenderConfig().enable_validation) {
-            createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
-            createInfo.ppEnabledLayerNames = validationLayers.data();
-        }
-        else {
-            createInfo.enabledLayerCount = 0;
-        }
-
-        if (vkCreateDevice(m_PhysicalDevice, &createInfo, nullptr, &m_Device) != VK_SUCCESS) {
-            LOG_ERROR("Failed to create logical device");
-            return BackendResult::FAILED_INITIALIZATION;
-        }
-
-        vkGetDeviceQueue(m_Device, m_QueueFamilyIndices.graphics_family.value(), 0, &m_GraphicsQueue);
-        vkGetDeviceQueue(m_Device, m_QueueFamilyIndices.present_family.value(), 0, &m_PresentQueue);
-
-        LOG_INFO("Logical device created successfully");
-        LOG_INFO_F("Graphics queue family: {}", m_QueueFamilyIndices.graphics_family.value());
-        LOG_INFO_F("Present queue family: {}", m_QueueFamilyIndices.present_family.value());
-
-        if (m_QueueFamilyIndices.graphics_family.value() == m_QueueFamilyIndices.present_family.value()) {
-            LOG_INFO("Graphics and present queues are the same");
-        }
-        else {
-            LOG_INFO("Graphics and present queues are separate");
-        }
-
-        return BackendResult::SUCCESS;
-    }
-
-    BackendResult VulkanBackend::CreateSwapchain() {
-        // Implementation would create swapchain
-        LOG_INFO("Swapchain creation - placeholder implementation");
-        return BackendResult::SUCCESS;
+    bool VulkanBackend::HasQueue(QueueType type) const {
+        return m_Queues.find(type) != m_Queues.end();
     }
 
     BackendResult VulkanBackend::CreateImageViews() {

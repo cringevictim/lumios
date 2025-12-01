@@ -22,7 +22,7 @@ namespace lumios::graphics {
 
     bool GraphicsFrontend::Initialize() {
         if (m_State != FrontendState::UNINITIALIZED) {
-            LOG_WARN("GraphicsFrontend already initialized or in invalid state: {}", StateToString(m_State));
+            LOG_WARN_F("GraphicsFrontend already initialized or in invalid state: {}", StateToString(m_State));
             return m_State == FrontendState::RUNNING || m_State == FrontendState::PAUSED;
         }
 
@@ -55,7 +55,7 @@ namespace lumios::graphics {
 
     void GraphicsFrontend::Run() {
         if (m_State != FrontendState::RUNNING) {
-            LOG_ERROR("Cannot run GraphicsFrontend - not in running state: {}", StateToString(m_State));
+            LOG_ERROR_F("Cannot run GraphicsFrontend - not in running state: {}", StateToString(m_State));
             return;
         }
 
@@ -125,7 +125,7 @@ namespace lumios::graphics {
     void GraphicsFrontend::SetFullscreen(bool fullscreen) {
         m_Config.SetFullscreen(fullscreen);
         // Fullscreen implementation would go here
-        LOG_INFO("Fullscreen mode: {}", fullscreen ? "enabled" : "disabled");
+        LOG_INFO_F("Fullscreen mode: {}", fullscreen ? "enabled" : "disabled");
     }
 
     const RenderStats& GraphicsFrontend::GetRenderStats() const {
@@ -138,12 +138,12 @@ namespace lumios::graphics {
 
     void GraphicsFrontend::SetTargetFPS(uint32_t fps) {
         m_Config.SetTargetFPS(fps);
-        LOG_INFO("Target FPS set to: {}", fps);
+        LOG_INFO_F("Target FPS set to: {}", fps);
     }
 
     void GraphicsFrontend::SetVSync(bool enabled) {
         m_Config.SetVSync(enabled);
-        LOG_INFO("VSync: {}", enabled ? "enabled" : "disabled");
+        LOG_INFO_F("VSync: {}", enabled ? "enabled" : "disabled");
     }
 
     std::string GraphicsFrontend::GetBackendInfo() const {
@@ -204,7 +204,7 @@ namespace lumios::graphics {
             return false;
         }
 
-        LOG_INFO("Graphics backend initialized: {}", m_Backend->GetAPIName());
+        LOG_INFO_F("Graphics backend initialized: {}", m_Backend->GetAPIName());
         return true;
     }
 
@@ -334,14 +334,14 @@ namespace lumios::graphics {
     }
 
     void GraphicsFrontend::ErrorCallback(int error, const char* description) {
-        LOG_ERROR("GLFW Error {}: {}", error, description);
+        LOG_ERROR_F("GLFW Error {}: {}", error, description);
     }
 
     // Utility methods
 
     void GraphicsFrontend::SetState(FrontendState state) {
         if (m_State != state) {
-            LOG_DEBUG("State change: {} -> {}", StateToString(m_State), StateToString(state));
+            LOG_DEBUG_F("State change: {} -> {}", StateToString(m_State), StateToString(state));
             m_State = state;
         }
     }

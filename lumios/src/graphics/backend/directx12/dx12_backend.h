@@ -37,7 +37,6 @@ namespace lumios::graphics {
         RenderStats GetRenderStats() const override;
 
         const GraphicsConfig& GetConfig() const override { return m_Config; }
-        bool SupportsFeature(const std::string& feature) const override;
 
     private:
         // DirectX 12 objects (as void pointers to avoid including headers)

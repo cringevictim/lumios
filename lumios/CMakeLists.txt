@@ -1,4 +1,4 @@
-﻿cmake_minimum_required (VERSION 3.12)
+﻿cmake_minimum_required (VERSION 4.1)
 project (lumios VERSION 1.0.0)
 
 add_library(lumios SHARED
@@ -9,7 +9,6 @@ add_library(lumios SHARED
  "src/core/utils/logger.cpp" 
  "src/core/memory/smart_resource.h"
  
- # Graphics system
  "src/graphics/config/graphics_config.h"
  "src/graphics/config/graphics_config.cpp"
  "src/graphics/backend/graphics_backend.h"
@@ -19,7 +18,7 @@ add_library(lumios SHARED
  "src/graphics/backend/directx12/dx12_backend.h"
  "src/graphics/backend/directx12/dx12_backend.cpp"
  "src/graphics/frontend/graphics_frontend.h"
- "src/graphics/frontend/graphics_frontend.cpp")
+ "src/graphics/frontend/graphics_frontend.cpp" "src/graphics/backend/vulkan/vulkan_instance.cpp" "src/graphics/backend/vulkan/vulkan_validator.cpp" "src/graphics/backend/vulkan/vulkan_surface.cpp" "src/graphics/backend/vulkan/vulkan_physical_device.cpp" "src/graphics/backend/vulkan/vulkan_logical_device.cpp" "src/graphics/backend/vulkan/vulkan_swapchain.cpp")
 
 target_include_directories(lumios PUBLIC 
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
@@ -27,7 +26,6 @@ target_include_directories(lumios PUBLIC
 )
 target_compile_definitions(lumios PRIVATE LUMIOS_BUILD)
 
-# Set library properties
 set_target_properties(lumios PROPERTIES
     VERSION ${PROJECT_VERSION}
     SOVERSION ${PROJECT_VERSION_MAJOR}

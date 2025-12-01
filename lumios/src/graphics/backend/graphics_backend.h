@@ -61,7 +61,6 @@ namespace lumios::graphics {
 
         // Configuration
         virtual const GraphicsConfig& GetConfig() const = 0;
-        virtual bool SupportsFeature(const std::string& feature) const = 0;
 
     protected:
         GraphicsBackend() = default;

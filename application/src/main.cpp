@@ -55,7 +55,7 @@ public:
     }
 
     void Shutdown() override {
-        LOG_INFO("MyGameApplication: Shutting down...");
+        LOG_INFO_F("MyGameApplication: Shutting down...");
         
         // Cleanup your game-specific resources here
         // For example:
@@ -69,11 +69,11 @@ public:
 
     // Event handling examples
     void OnWindowResize(int width, int height) override {
-        LOG_INFO("Window resized to {}x{}", width, height);
+        LOG_INFO_F("Window resized to {}x{}", width, height);
     }
 
     void OnKeyPressed(int key) override {
-        LOG_DEBUG("Key pressed: {}", key);
+        LOG_DEBUG_F("Key pressed: {}", key);
         
         // Example: Exit on Escape key
         //if (key == 256) { // GLFW_KEY_ESCAPE
@@ -84,11 +84,11 @@ public:
     }
 
     void OnKeyReleased(int key) override {
-        LOG_DEBUG("Key released: {}", key);
+        LOG_DEBUG_F("Key released: {}", key);
     }
 
     void OnMousePressed(int button) override {
-        LOG_DEBUG("Mouse button pressed: {}", button);
+        LOG_DEBUG_F("Mouse button pressed: {}", button);
     }
 
     void OnMouseMoved(float x, float y) override {
@@ -97,7 +97,7 @@ public:
 };
 
 int main() {
-    LOG_INFO("Starting Lumios Engine Application");
+    LOG_INFO_F("Starting Lumios Engine Application");
 
     // Configure the engine
     lumios::EngineConfig config;
@@ -109,7 +109,7 @@ int main() {
 
     // Initialize the engine
     if (!lumios::InitializeEngine(config)) {
-        LOG_ERROR("Failed to initialize Lumios Engine");
+        LOG_ERROR_F("Failed to initialize Lumios Engine");
         return -1;
     }
 

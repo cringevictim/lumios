@@ -118,11 +118,18 @@ void EditorApp::update_editor_camera(float dt) {
     float dx  = static_cast<float>(input_.mouse_dx());
     float dy  = static_cast<float>(input_.mouse_dy());
 
-    // RMB hold: FPS-style camera look
+    // RMB hold: FPS-style camera look (rotate in-place)
     if (rmb) {
+        glm::vec3 cam_pos = editor_camera_.position();
         orbit_yaw_   += dx * 0.15f;
-        orbit_pitch_ += dy * 0.15f;
+        orbit_pitch_ -= dy * 0.15f;
         orbit_pitch_  = glm::clamp(orbit_pitch_, -89.0f, 89.0f);
+
+        glm::vec3 dir;
+        dir.x = cos(glm::radians(orbit_yaw_)) * cos(glm::radians(orbit_pitch_));
+        dir.y = sin(glm::radians(orbit_pitch_));
+        dir.z = sin(glm::radians(orbit_yaw_)) * cos(glm::radians(orbit_pitch_));
+        focus_point_ = cam_pos + glm::normalize(dir) * orbit_distance_;
     }
 
     // MMB: Pan

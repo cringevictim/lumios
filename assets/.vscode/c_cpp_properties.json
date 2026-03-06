@@ -1,0 +1,21 @@
+{
+    "configurations": [
+        {
+            "name": "Lumios Scripts",
+            "includePath": [
+                "${workspaceFolder}/../lumios/src",
+                "${workspaceFolder}/../build/_deps/glm-src",
+                "${workspaceFolder}/../build/_deps/entt-src/single_include",
+                "${workspaceFolder}/../build/_deps/glfw-src/include"
+            ],
+            "defines": [
+                "GLM_FORCE_RADIANS",
+                "GLM_FORCE_DEPTH_ZERO_TO_ONE"
+            ],
+            "cStandard": "c17",
+            "cppStandard": "c++20",
+            "compileCommands": "${workspaceFolder}/../build/compile_commands.json"
+        }
+    ],
+    "version": 4
+}

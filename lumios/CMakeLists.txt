@@ -1,80 +1,62 @@
-﻿cmake_minimum_required (VERSION 4.1)
-project (lumios VERSION 1.0.0)
-
-add_library(lumios SHARED
- "src/lumios.cpp"
- "src/lumios.h"
- "src/defines.h" 
- "src/core/utils/logger.h"
- "src/core/utils/logger.cpp" 
- "src/core/memory/smart_resource.h"
- 
- "src/graphics/config/graphics_config.h"
- "src/graphics/config/graphics_config.cpp"
- "src/graphics/backend/graphics_backend.h"
- "src/graphics/backend/graphics_backend.cpp"
- "src/graphics/backend/vulkan/vulkan_backend.h"
- "src/graphics/backend/vulkan/vulkan_backend.cpp"
- "src/graphics/backend/directx12/dx12_backend.h"
- "src/graphics/backend/directx12/dx12_backend.cpp"
- "src/graphics/frontend/graphics_frontend.h"
- "src/graphics/frontend/graphics_frontend.cpp" "src/graphics/backend/vulkan/vulkan_instance.cpp" "src/graphics/backend/vulkan/vulkan_validator.cpp" "src/graphics/backend/vulkan/vulkan_surface.cpp" "src/graphics/backend/vulkan/vulkan_physical_device.cpp" "src/graphics/backend/vulkan/vulkan_logical_device.cpp" "src/graphics/backend/vulkan/vulkan_swapchain.cpp")
-
-target_include_directories(lumios PUBLIC 
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
-    $<INSTALL_INTERFACE:include>
-)
-target_compile_definitions(lumios PRIVATE LUMIOS_BUILD)
-
-set_target_properties(lumios PROPERTIES
-    VERSION ${PROJECT_VERSION}
-    SOVERSION ${PROJECT_VERSION_MAJOR}
-    OUTPUT_NAME "lumios"
-    CLEAN_DIRECT_OUTPUT 1
+set(LUMIOS_SOURCES
+    src/lumios.cpp
+    src/core/log.cpp
+    src/core/input.cpp
+    src/platform/window.cpp
+    src/assets/loader.cpp
+    src/graphics/stb_impl.cpp
+    src/graphics/vulkan/vk_mem.cpp
+    src/graphics/vulkan/vk_init.cpp
+    src/graphics/vulkan/vk_swapchain.cpp
+    src/graphics/vulkan/vk_pipeline.cpp
+    src/graphics/vulkan/vk_buffer.cpp
+    src/graphics/vulkan/vk_descriptors.cpp
+    src/graphics/vulkan/vk_texture.cpp
+    src/graphics/vulkan/vk_renderer.cpp
 )
 
-# Install rules
-install(TARGETS lumios
-    EXPORT lumiosTargets
-    LIBRARY DESTINATION lib
-    ARCHIVE DESTINATION lib
-    RUNTIME DESTINATION bin
-    INCLUDES DESTINATION include
+add_library(lumios SHARED ${LUMIOS_SOURCES})
+
+target_include_directories(lumios
+    PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}/src
+    PRIVATE ${stb_SOURCE_DIR}
 )
 
-install(FILES src/lumios.h
-    DESTINATION include
+target_link_libraries(lumios
+    PUBLIC  glm::glm glfw EnTT::EnTT
+    PRIVATE Vulkan::Vulkan VulkanMemoryAllocator
 )
 
-# Install tinygltf headers if available
-if(TARGET tinygltf::tinygltf AND tinygltf_ADDED)
-    install(FILES ${tinygltf_SOURCE_DIR}/tiny_gltf.h
-        DESTINATION include
-    )
-endif()
+target_compile_definitions(lumios
+    PRIVATE LUMIOS_BUILD
+    PUBLIC  $<$<CONFIG:Debug>:LUMIOS_DEBUG=1>
+)
 
-# Link header-only Vulkan-Headers if available (from root CPM)
-if(TARGET Vulkan::Headers)
-  target_link_libraries(lumios PUBLIC Vulkan::Headers)
-endif()
+# --- Shader compilation ---
+find_program(GLSLC glslc HINTS $ENV{VULKAN_SDK}/Bin $ENV{VULKAN_SDK}/bin)
 
-# Link tinygltf if available (from root CPM)
-if(TARGET tinygltf::tinygltf)
-  target_link_libraries(lumios PUBLIC tinygltf::tinygltf)
-endif()
+if(NOT GLSLC)
+    message(WARNING "glslc not found - shaders will not be compiled")
+else()
+    set(SHADER_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/shaders")
+    set(SHADER_BIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/shaders/binaries")
+    file(MAKE_DIRECTORY ${SHADER_BIN_DIR})
 
-# Link GLFW if available (from root CPM)
-if(TARGET glfw)
-  target_link_libraries(lumios PUBLIC glfw)
-endif()
+    file(GLOB SHADER_SOURCES "${SHADER_SRC_DIR}/*.vert" "${SHADER_SRC_DIR}/*.frag" "${SHADER_SRC_DIR}/*.comp")
 
-# Link GLM if available (from root CPM)
-if(TARGET glm::glm)
-  target_link_libraries(lumios PUBLIC glm::glm)
-endif()
+    foreach(SHADER ${SHADER_SOURCES})
+        get_filename_component(SHADER_NAME ${SHADER} NAME)
+        set(SPV_OUTPUT "${SHADER_BIN_DIR}/${SHADER_NAME}.spv")
 
-# Optional fallback to system Vulkan SDK for loader (no volk requested)
-find_package(Vulkan QUIET)
-if(Vulkan_FOUND)
-  target_link_libraries(lumios PUBLIC Vulkan::Vulkan)
+        add_custom_command(
+            OUTPUT  ${SPV_OUTPUT}
+            COMMAND ${GLSLC} ${SHADER} -o ${SPV_OUTPUT}
+            DEPENDS ${SHADER}
+            COMMENT "Compiling shader: ${SHADER_NAME}"
+        )
+        list(APPEND SPV_SHADERS ${SPV_OUTPUT})
+    endforeach()
+
+    add_custom_target(lumios_shaders ALL DEPENDS ${SPV_SHADERS})
+    add_dependencies(lumios lumios_shaders)
 endif()

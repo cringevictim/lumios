@@ -1,0 +1,59 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "CMake Configure",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["..", "-DCMAKE_BUILD_TYPE=Debug"],
+            "options": { "cwd": "${workspaceFolder}/build" },
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Build All",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--build", ".", "--parallel"],
+            "options": { "cwd": "${workspaceFolder}/build" },
+            "group": { "kind": "build", "isDefault": true },
+            "problemMatcher": ["$gcc"]
+        },
+        {
+            "label": "Build Editor",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--build", ".", "--target", "editor", "--parallel"],
+            "options": { "cwd": "${workspaceFolder}/build" },
+            "group": "build",
+            "problemMatcher": ["$gcc"]
+        },
+        {
+            "label": "Build Application",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--build", ".", "--target", "application", "--parallel"],
+            "options": { "cwd": "${workspaceFolder}/build" },
+            "group": "build",
+            "problemMatcher": ["$gcc"]
+        },
+        {
+            "label": "Build Engine",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--build", ".", "--target", "lumios", "--parallel"],
+            "options": { "cwd": "${workspaceFolder}/build" },
+            "group": "build",
+            "problemMatcher": ["$gcc"]
+        },
+        {
+            "label": "Clean Build",
+            "type": "shell",
+            "command": "cmake",
+            "args": ["--build", ".", "--target", "clean"],
+            "options": { "cwd": "${workspaceFolder}/build" },
+            "group": "build",
+            "problemMatcher": []
+        }
+    ]
+}

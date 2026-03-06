@@ -1,0 +1,40 @@
+#version 450
+
+struct Particle {
+    vec4 position; // xyz = pos, w = life
+    vec4 velocity; // xyz = vel, w = size
+    vec4 color;
+};
+
+layout(std430, set = 0, binding = 0) buffer ParticleBuffer {
+    Particle particles[];
+};
+
+layout(push_constant) uniform PC {
+    float delta_time;
+    float max_life;
+    uint  particle_count;
+    float gravity_y;
+};
+
+layout(local_size_x = 256) in;
+
+void main() {
+    uint idx = gl_GlobalInvocationID.x;
+    if (idx >= particle_count) return;
+
+    Particle p = particles[idx];
+
+    if (p.position.w <= 0.0) return;
+
+    p.position.w -= delta_time;
+
+    p.velocity.y += gravity_y * delta_time;
+    p.position.xyz += p.velocity.xyz * delta_time;
+
+    float t = 1.0 - (p.position.w / max_life);
+    p.color.a = 1.0 - t;
+    p.velocity.w = mix(p.velocity.w, 0.0, t * 0.5);
+
+    particles[idx] = p;
+}

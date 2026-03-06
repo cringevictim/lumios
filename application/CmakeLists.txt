@@ -1,39 +1,16 @@
-cmake_minimum_required (VERSION 4.1)
-project (application VERSION 1.0.0)
-
-add_executable (application)
-target_sources(application PRIVATE
-	src/main.cpp
-)
+add_executable(application src/main.cpp)
 
 target_link_libraries(application PRIVATE lumios)
-target_include_directories(application PRIVATE "${CMAKE_SOURCE_DIR}/lumios/src")
 
-if(TARGET glfw)
-  target_link_libraries(application PRIVATE glfw)
-endif()
-
-if(TARGET Vulkan::Headers)
-  target_link_libraries(application PRIVATE Vulkan::Headers)
-endif()
-
-if(TARGET glm::glm)
-  target_link_libraries(application PRIVATE glm::glm)
-endif()
-
-find_package(Vulkan QUIET)
-if(Vulkan_FOUND)
-  target_link_libraries(application PRIVATE Vulkan::Vulkan)
-endif()
-
-set_target_properties(application PROPERTIES
-    VERSION ${PROJECT_VERSION}
-    OUTPUT_NAME "application"
+target_compile_definitions(application PRIVATE
+    LUMIOS_SHADER_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../lumios/src/shaders/binaries"
 )
 
-install(TARGETS application
-    RUNTIME DESTINATION bin
-)
-
-
-
+# Copy lumios DLL next to the executable on Windows
+if(WIN32)
+    add_custom_command(TARGET application POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        $<TARGET_FILE:lumios>
+        $<TARGET_FILE_DIR:application>
+    )
+endif()
